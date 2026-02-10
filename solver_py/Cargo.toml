@@ -1,0 +1,18 @@
+[package]
+name = "oxipostflop"
+version.workspace = true
+edition.workspace = true
+metadata.maturin.python-source = "python"
+
+[lib]
+crate-type = ["cdylib", "lib"]  # what that means??
+
+[dependencies]
+solver_rs = {path = "../solver_rs"}
+
+[dependencies.pyo3]
+version = "0.22.2"
+
+[features]  # wtf is this??
+extension-module = ["pyo3/extension-module"]
+default = ["extension-module"]
