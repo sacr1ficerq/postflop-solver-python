@@ -8,7 +8,9 @@ metadata.maturin.python-source = "python"
 crate-type = ["cdylib", "lib"]  # what that means??
 
 [dependencies]
-solver_rs = {path = "../solver_rs"}
+postflop-solver = {path = "../postflop-solver"}
+numpy = "0.22"
+ndarray = "0.16"
 
 [dependencies.pyo3]
 version = "0.22.2"

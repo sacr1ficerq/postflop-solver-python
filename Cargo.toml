@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "solver_rs",
+    "postflop-solver",
     "solver_py",
 ]
 
