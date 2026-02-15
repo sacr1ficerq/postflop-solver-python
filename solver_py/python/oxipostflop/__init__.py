@@ -9,7 +9,14 @@ from .oxipostflop import (
     holes_to_strings,
     compute_average,
     card_from_str,
+    flop_from_str,
+    card_to_string,
+    hole_to_string,
     solve,
+    compute_exploitability,
+    compute_current_ev,
+    compute_mes_ev,
+    finalize,
 )
 
 __doc__ = oxipostflop.__doc__
@@ -24,5 +31,12 @@ __all__ = [
     "holes_to_strings",
     "compute_average",
     "card_from_str",
+    "flop_from_str",
+    "card_to_string",
+    "hole_to_string",
     "solve",
+    "compute_exploitability",
+    "compute_current_ev",
+    "compute_mes_ev",
+    "finalize",
 ]
