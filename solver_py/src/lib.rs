@@ -12,6 +12,28 @@ mod oxipostflop {
 
     #[derive(Clone)]
     #[pyclass]
+    pub struct DonkSizeOptions(postflop_solver::DonkSizeOptions);
+
+    #[pymethods]
+    impl DonkSizeOptions {
+        #[new]
+        fn new(donk_sizes: &str) -> PyResult<Self> {
+            let donk_sizes_instance = postflop_solver::DonkSizeOptions::try_from(donk_sizes)
+                .map_err(|e| PyValueError::new_err(format!("something wrong my brother: {}", e)))?;
+            Ok(Self(donk_sizes_instance))
+        }
+
+        fn __repr__(&self) -> String {
+            format!("{:#?}", self.0)
+        }
+
+        fn __str__(&self) -> String {
+            format!("{:#?}", self.0)
+        }
+    }
+
+    #[derive(Clone)]
+    #[pyclass]
     pub struct BetSizeOptions(postflop_solver::BetSizeOptions);
 
     #[pymethods]
@@ -23,6 +45,14 @@ mod oxipostflop {
                     |e| PyValueError::new_err(format!("something wrong my brother: {}", e)),
                 )?;
             Ok(Self(bet_sizes_instance))
+        }
+
+        fn __repr__(&self) -> String {
+            format!("{:#?}", self.0)
+        }
+
+        fn __str__(&self) -> String {
+            format!("{:#?}", self.0)
         }
     }
 
@@ -46,6 +76,14 @@ mod oxipostflop {
                 .map_err(|e| PyValueError::new_err(format!("something wrong my brother: {}", e)))?;
             Ok(Self(initial_state))
         }
+
+        fn __repr__(&self) -> String {
+            format!("{:#?}", self.0)
+        }
+
+        fn __str__(&self) -> String {
+            format!("{:#?}", self.0)
+        }
     }
 
     #[pyclass]
@@ -54,33 +92,51 @@ mod oxipostflop {
     #[pymethods]
     impl CardConfig {
         #[new]
+        #[pyo3(signature = (oop_range, ip_range, flop, turn=None, river=None))]
         fn new(
-            ip_range: &str,
             oop_range: &str,
+            ip_range: &str,
             flop: &str,
-            turn: &str,
-            river: &str,
+            turn: Option<&str>,
+            river: Option<&str>,
         ) -> PyResult<Self> {
-            let ip_range_instance = ip_range
+            let oop_range_instance = oop_range
                 .parse::<postflop_solver::Range>()
                 .map_err(|e| PyValueError::new_err(format!("something wrong my brother: {}", e)))?;
-            let oop_range_instance = oop_range
+            let ip_range_instance = ip_range
                 .parse::<postflop_solver::Range>()
                 .map_err(|e| PyValueError::new_err(format!("something wrong my brother: {}", e)))?;
 
             let flop_instance = postflop_solver::flop_from_str(flop)
                 .map_err(|e| PyValueError::new_err(format!("something wrong my brother: {}", e)))?;
-            let turn_instance = postflop_solver::card_from_str(turn)
-                .map_err(|e| PyValueError::new_err(format!("something wrong my brother: {}", e)))?;
-            let river_instance = postflop_solver::card_from_str(river)
-                .map_err(|e| PyValueError::new_err(format!("something wrong my brother: {}", e)))?;
+
+            let turn_instance = turn.map_or(Ok(postflop_solver::NOT_DEALT), |turn| {
+                postflop_solver::card_from_str(turn).map_err(|e| {
+                    PyValueError::new_err(format!("something wrong my brother: {}", e))
+                })
+            })?;
+
+            let river_instance = river.map_or(Ok(postflop_solver::NOT_DEALT), |river| {
+                postflop_solver::card_from_str(river).map_err(|e| {
+                    PyValueError::new_err(format!("something wrong my brother: {}", e))
+                })
+            })?;
+
             let card_config_instance = postflop_solver::CardConfig {
-                range: [ip_range_instance, oop_range_instance],
+                range: [oop_range_instance, ip_range_instance],
                 flop: flop_instance,
                 turn: turn_instance,
                 river: river_instance,
             };
             Ok(Self(card_config_instance))
+        }
+
+        fn __repr__(&self) -> String {
+            format!("{:#?}", self.0)
+        }
+
+        fn __str__(&self) -> String {
+            format!("{:#?}", self.0)
         }
     }
 
@@ -90,36 +146,118 @@ mod oxipostflop {
     #[pymethods]
     impl TreeConfig {
         #[new]
+        #[pyo3(signature = (
+            initial_state,
+            starting_pot,
+            effective_stack,
+            flop_bet_sizes_oop,
+            flop_bet_sizes_ip,
+            turn_bet_sizes_oop,
+            turn_bet_sizes_ip,
+            river_bet_sizes_oop,
+            river_bet_sizes_ip,
+            turn_donk_sizes = None,
+            river_donk_sizes = None,
+            add_allin_threshold = 1.5,
+            force_allin_threshold = 0.15,
+            merging_threshold = 0.1
+        ))]
         fn new(
             initial_state: &BoardState,
             starting_pot: usize,
             effective_stack: usize,
-            bet_sizes: &BetSizeOptions,
+            flop_bet_sizes_oop: &BetSizeOptions,
+            flop_bet_sizes_ip: &BetSizeOptions,
+            turn_bet_sizes_oop: &BetSizeOptions,
+            turn_bet_sizes_ip: &BetSizeOptions,
+            river_bet_sizes_oop: &BetSizeOptions,
+            river_bet_sizes_ip: &BetSizeOptions,
+            turn_donk_sizes: Option<&DonkSizeOptions>,
+            river_donk_sizes: Option<&DonkSizeOptions>,
+            add_allin_threshold: f64,
+            force_allin_threshold: f64,
+            merging_threshold: f64,
         ) -> PyResult<Self> {
             let initial_state_instance = initial_state.0;
-            let bet_sizes_instance = bet_sizes.0.clone();
             let tree_config_instance = postflop_solver::TreeConfig {
                 initial_state: initial_state_instance,
                 starting_pot: starting_pot as i32,
                 effective_stack: effective_stack as i32,
                 rake_rate: 0.0,
                 rake_cap: 0.0,
-                flop_bet_sizes: [bet_sizes_instance.clone(), bet_sizes_instance.clone()],
-                turn_bet_sizes: [bet_sizes_instance.clone(), bet_sizes_instance.clone()],
-                river_bet_sizes: [bet_sizes_instance.clone(), bet_sizes_instance],
-                turn_donk_sizes: None,
-                river_donk_sizes: None,
-                add_allin_threshold: 1.5,
-                force_allin_threshold: 0.15,
-                merging_threshold: 0.1,
+                flop_bet_sizes: [flop_bet_sizes_oop.0.clone(), flop_bet_sizes_ip.0.clone()],
+                turn_bet_sizes: [turn_bet_sizes_oop.0.clone(), turn_bet_sizes_ip.0.clone()],
+                river_bet_sizes: [river_bet_sizes_oop.0.clone(), river_bet_sizes_ip.0.clone()],
+                turn_donk_sizes: turn_donk_sizes.map(|d| d.0.clone()),
+                river_donk_sizes: river_donk_sizes.map(|d| d.0.clone()),
+                add_allin_threshold,
+                force_allin_threshold,
+                merging_threshold,
             };
             Ok(Self(tree_config_instance))
+        }
+
+        fn __repr__(&self) -> String {
+            format!("{:#?}", self.0)
+        }
+
+        fn __str__(&self) -> String {
+            format!("{:#?}", self.0)
+        }
+    }
+
+    fn get_action(str_action: &str, x: usize) -> Result<postflop_solver::Action, String> {
+        match str_action {
+            "Check" => Ok(postflop_solver::Action::Check),
+            "Bet(x)" => Ok(postflop_solver::Action::Bet(x as i32)),
+            "Raise(x)" => Ok(postflop_solver::Action::Raise(x as i32)),
+            "AllIn(x)" => Ok(postflop_solver::Action::AllIn(x as i32)),
+            _ => Err(format!("invalid action: {}", str_action)),
         }
     }
 
     #[pyclass]
-    pub struct PostFlopGame(postflop_solver::PostFlopGame);
+    pub struct Action(postflop_solver::Action);
 
+    #[pymethods]
+    impl Action {
+        #[new]
+        fn new(action: &str) -> PyResult<Self> {
+            let action_instance = get_action(action, 0)
+                .map_err(|e| PyValueError::new_err(format!("something wrong my brother: {}", e)))?;
+            Ok(Self(action_instance))
+        }
+
+        fn __repr__(&self) -> String {
+            format!("{:#?}", self.0)
+        }
+
+        fn __str__(&self) -> String {
+            format!("{:#?}", self.0)
+        }
+    }
+
+    #[pyfunction]
+    fn holes_to_strings(holes: Vec<(u8, u8)>) -> PyResult<Vec<String>> {
+        let strings = postflop_solver::holes_to_strings(holes.as_slice())
+            .map_err(|e| PyValueError::new_err(format!("something wrong my brother: {}", e)))?;
+        Ok(strings)
+    }
+
+    #[pyfunction]
+    fn compute_average(values: Vec<f32>, weights: Vec<f32>) -> f32 {
+        postflop_solver::compute_average(values.as_slice(), weights.as_slice())
+    }
+
+    #[pyfunction]
+    fn card_from_str(card: &str) -> PyResult<u8> {
+        postflop_solver::card_from_str(card)
+            .map(|c| c as u8)
+            .map_err(|e| PyValueError::new_err(format!("something wrong my brother: {}", e)))
+    }
+
+    #[pyclass]
+    pub struct PostFlopGame(postflop_solver::PostFlopGame);
     #[pymethods]
     impl PostFlopGame {
         #[new]
@@ -133,6 +271,69 @@ mod oxipostflop {
             )
             .map_err(|e| PyValueError::new_err(format!("something wrong my brother: {}", e)))?;
             Ok(Self(game_instance))
+        }
+
+        fn play(&mut self, action: usize) {
+            self.0.play(action);
+        }
+
+        fn back_to_root(&mut self) {
+            self.0.back_to_root();
+        }
+
+        fn is_chance_node(&self) -> bool {
+            self.0.is_chance_node()
+        }
+
+        // return a 64-bit integer representing the possible cards as a bit mask
+        fn possible_cards(&self) -> u64 {
+            self.0.possible_cards()
+        }
+
+        fn private_cards(&self, player: usize) -> Vec<(u8, u8)> {
+            Vec::from_iter(
+                self.0
+                    .private_cards(player)
+                    .iter()
+                    .map(|(a, b)| (*a as u8, *b as u8)),
+            )
+        }
+
+        fn memory_usage(&self) -> (u64, u64) {
+            self.0.memory_usage()
+        }
+
+        fn tree_config(&self) -> TreeConfig {
+            TreeConfig(self.0.tree_config().clone())
+        }
+
+        fn available_actions(&self) -> Vec<Action> {
+            self.0
+                .available_actions()
+                .iter()
+                .map(|a| Action(*a))
+                .collect()
+        }
+
+        fn equity(&self, player: usize) -> Vec<f32> {
+            self.0.equity(player)
+        }
+
+        fn expected_values(&self, player: usize) -> Vec<f32> {
+            self.0.expected_values(player)
+        }
+
+        fn normalized_weights(&self, player: usize) -> Vec<f32> {
+            let weights = self.0.normalized_weights(player);
+            Vec::from_iter(weights.iter().map(|w| *w as f32))
+        }
+
+        fn cache_normalized_weights(&mut self) {
+            self.0.cache_normalized_weights();
+        }
+
+        fn strategy(&self) -> Vec<f32> {
+            self.0.strategy()
         }
     }
 
@@ -180,6 +381,7 @@ mod oxipostflop {
     }
 
     use postflop_solver::*;
+    #[allow(dead_code)]
     fn mama() {
         // ranges of OOP and IP in string format
         // see the documentation of `Range` for more details about the format
@@ -208,7 +410,7 @@ mod oxipostflop {
             turn_bet_sizes: [bet_sizes.clone(), bet_sizes.clone()],
             river_bet_sizes: [bet_sizes.clone(), bet_sizes],
             turn_donk_sizes: None, // use default bet sizes
-            river_donk_sizes: Some(DonkSizeOptions::try_from("50%").unwrap()),
+            river_donk_sizes: Some(postflop_solver::DonkSizeOptions::try_from("50%").unwrap()),
             add_allin_threshold: 1.5, // add all-in if (maximum bet size) <= 1.5x pot
             force_allin_threshold: 0.15, // force all-in if (SPR after the opponent's call) <= 0.15
             merging_threshold: 0.1,
@@ -222,12 +424,10 @@ mod oxipostflop {
 
         // obtain the private hands
         let oop_cards = game.private_cards(0);
-        let oop_cards_str = holes_to_strings(oop_cards).unwrap();
+        let oop_cards_str = postflop_solver::holes_to_strings(oop_cards).unwrap();
         assert_eq!(
             &oop_cards_str[..10],
-            &[
-                "5c4c", "Ac4c", "5d4d", "Ad4d", "5h4h", "Ah4h", "5s4s", "As4s", "6c5c", "7c5c"
-            ]
+            &["5c4c", "Ac4c", "5d4d", "Ad4d", "5h4h", "Ah4h", "5s4s", "As4s", "6c5c", "7c5c"]
         );
 
         // check memory usage
@@ -263,8 +463,8 @@ mod oxipostflop {
 
         // get equity and EV of whole hand
         let weights = game.normalized_weights(0);
-        let average_equity = compute_average(&equity, weights);
-        let average_ev = compute_average(&ev, weights);
+        let average_equity = compute_average(equity.to_vec(), weights.to_vec());
+        let average_ev = compute_average(ev.to_vec(), weights.to_vec());
         println!("Average equity: {:.2}%", 100.0 * average_equity);
         println!("Average EV: {:.2}", average_ev);
 
@@ -288,7 +488,7 @@ mod oxipostflop {
         assert_eq!(ip_cards.len(), 250);
         assert_eq!(strategy.len(), 750);
 
-        let ksjs = holes_to_strings(ip_cards)
+        let ksjs = postflop_solver::holes_to_strings(ip_cards)
             .unwrap()
             .iter()
             .position(|s| s == "KsJs")

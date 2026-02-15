@@ -15,3 +15,7 @@ dynamic = ["version"]  # whats that?
 [tool.maturin]
 python-source = "python"
 include = ["*"]  # what are we including?
+
+[tool.pyright]
+venvPath = "."      # The directory where your venv folder is located
+venv = "venv13"      # The name of the virtual environment folder
