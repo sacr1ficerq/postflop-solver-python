@@ -246,9 +246,12 @@ mod oxipostflop {
     }
 
     #[pyfunction]
-    fn flop_from_str(flop: &str) -> PyResult<Vec<u8>> {
+    fn flop_from_str<'py>(py: Python<'py>, flop: &str) -> PyResult<Bound<'py, PyArray1<u8>>> {
         postflop_solver::flop_from_str(flop)
-            .map(|arr| arr.to_vec())
+            .map(|arr| {
+                let array = Array1::from_vec(arr.to_vec());
+                array.into_pyarray_bound(py)
+            })
             .map_err(|e| PyValueError::new_err(e))
     }
 
@@ -298,10 +301,12 @@ mod oxipostflop {
         ///
         /// Returns
         /// -------
-        /// list of int
-        ///   Action indices that were played.
-        fn history(&self) -> Vec<usize> {
-            self.0.history().to_vec()
+        /// numpy.ndarray
+        ///   Array of action indices.
+        fn history<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<usize>> {
+            let vec = self.0.history().to_vec();
+            let array = Array1::from_vec(vec);
+            array.into_pyarray_bound(py)
         }
 
         /// Applies a history of actions from the root node.
@@ -356,10 +361,12 @@ mod oxipostflop {
         ///
         /// Returns
         /// -------
-        /// list of int
-        ///   Card IDs for flop (3), turn (4), river (5).
-        fn current_board(&self) -> Vec<u8> {
-            self.0.current_board()
+        /// numpy.ndarray
+        ///   Array of card IDs for flop (3), turn (4), river (5).
+        fn current_board<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<u8>> {
+            let vec = self.0.current_board();
+            let array = Array1::from_vec(vec);
+            array.into_pyarray_bound(py)
         }
 
         /// Plays an action at the current node.
@@ -436,9 +443,12 @@ mod oxipostflop {
         ///
         /// Returns
         /// -------
-        /// list of float
-        fn equity(&self, player: usize) -> Vec<f32> {
-            self.0.equity(player)
+        /// numpy.ndarray
+        ///   Array of float32 values.
+        fn equity<'py>(&self, py: Python<'py>, player: usize) -> Bound<'py, PyArray1<f32>> {
+            let vec = self.0.equity(player);
+            let array = Array1::from_vec(vec);
+            array.into_pyarray_bound(py)
         }
 
         /// Returns expected values for each private hand.
@@ -452,9 +462,16 @@ mod oxipostflop {
         ///
         /// Returns
         /// -------
-        /// list of float
-        fn expected_values(&self, player: usize) -> Vec<f32> {
-            self.0.expected_values(player)
+        /// numpy.ndarray
+        ///   Array of float32 values.
+        fn expected_values<'py>(
+            &self,
+            py: Python<'py>,
+            player: usize,
+        ) -> Bound<'py, PyArray1<f32>> {
+            let vec = self.0.expected_values(player);
+            let array = Array1::from_vec(vec);
+            array.into_pyarray_bound(py)
         }
 
         /// Returns detailed EV for each action and hand.
@@ -468,10 +485,16 @@ mod oxipostflop {
         ///
         /// Returns
         /// -------
-        /// list of float
-        ///   Length is num_actions * num_hands.
-        fn expected_values_detail(&self, player: usize) -> Vec<f32> {
-            self.0.expected_values_detail(player)
+        /// numpy.ndarray
+        ///   Array of float32 values with length num_actions * num_hands.
+        fn expected_values_detail<'py>(
+            &self,
+            py: Python<'py>,
+            player: usize,
+        ) -> Bound<'py, PyArray1<f32>> {
+            let vec = self.0.expected_values_detail(player);
+            let array = Array1::from_vec(vec);
+            array.into_pyarray_bound(py)
         }
 
         /// Returns normalized weights for each private hand.
@@ -485,10 +508,18 @@ mod oxipostflop {
         ///
         /// Returns
         /// -------
-        /// list of float
-        fn normalized_weights(&self, player: usize) -> Vec<f32> {
+        /// numpy.ndarray
+        ///   Array of float32 values.
+        fn normalized_weights<'py>(
+            &self,
+            py: Python<'py>,
+            player: usize,
+        ) -> Bound<'py, PyArray1<f32>> {
             let weights = self.0.normalized_weights(player);
-            Vec::from_iter(weights.iter().map(|w| *w as f32))
+            let vec = Vec::from_iter(weights.iter().map(|w| *w as f32));  // TODO: can we make this
+                                                                          // more efficient?
+            let array = Array1::from_vec(vec);
+            array.into_pyarray_bound(py)
         }
 
         /// Caches normalized weights for equity/EV calculations.
@@ -500,10 +531,12 @@ mod oxipostflop {
         ///
         /// Returns
         /// -------
-        /// list of float
-        ///   Length is num_actions * num_hands.
-        fn strategy(&self) -> Vec<f32> {
-            self.0.strategy()
+        /// numpy.ndarray
+        ///   Array of float32 values with length num_actions * num_hands.
+        fn strategy<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<f32>> {
+            let vec = self.0.strategy();
+            let array = Array1::from_vec(vec);
+            array.into_pyarray_bound(py)
         }
 
         /// Returns total bet amount for each player.
@@ -522,8 +555,8 @@ mod oxipostflop {
         ///
         /// Parameters
         /// ----------
-        /// strategy : list of float
-        ///   Length = num_actions * num_hands.
+        /// strategy : numpy.ndarray
+        ///   Array of float32 values with length = num_actions * num_hands.
         fn lock_current_strategy(&mut self, strategy: Vec<f32>) -> PyResult<()> {
             self.0.lock_current_strategy(&strategy);
             Ok(())
@@ -538,9 +571,16 @@ mod oxipostflop {
         ///
         /// Returns
         /// -------
-        /// list of float or None
-        fn current_locking_strategy(&self) -> Option<Vec<f32>> {
-            self.0.current_locking_strategy()
+        /// numpy.ndarray or None
+        ///   Array of float32 values or None.
+        fn current_locking_strategy<'py>(
+            &self,
+            py: Python<'py>,
+        ) -> Option<Bound<'py, PyArray1<f32>>> {
+            self.0.current_locking_strategy().map(|vec| {
+                let array = Array1::from_vec(vec);
+                array.into_pyarray_bound(py)
+            })
         }
 
         /// Returns whether memory has been allocated.
@@ -607,10 +647,13 @@ mod oxipostflop {
         ///
         /// Returns
         /// -------
-        /// list of float
-        fn weights(&self, player: usize) -> Vec<f32> {
+        /// numpy.ndarray
+        ///   Array of float32 values.
+        fn weights<'py>(&self, py: Python<'py>, player: usize) -> Bound<'py, PyArray1<f32>> {
             let w = self.0.weights(player);
-            Vec::from_iter(w.iter().map(|x| *x))
+            let vec = Vec::from_iter(w.iter().map(|x| *x));
+            let array = Array1::from_vec(vec);
+            array.into_pyarray_bound(py)
         }
     }
 
