@@ -18,9 +18,9 @@ mod oxipostflop {
     impl DonkSizeOptions {
         #[new]
         fn new(donk_sizes: &str) -> PyResult<Self> {
-            let donk_sizes_instance = postflop_solver::DonkSizeOptions::try_from(donk_sizes)
-                .map_err(|e| PyValueError::new_err(format!("something wrong my brother: {}", e)))?;
-            Ok(Self(donk_sizes_instance))
+            postflop_solver::DonkSizeOptions::try_from(donk_sizes)
+                .map(Self)
+                .map_err(|e| PyValueError::new_err(e))
         }
 
         fn __repr__(&self) -> String {
@@ -40,11 +40,9 @@ mod oxipostflop {
     impl BetSizeOptions {
         #[new]
         fn new(bet_sizes: &str, raise_sizes: &str) -> PyResult<Self> {
-            let bet_sizes_instance =
-                postflop_solver::BetSizeOptions::try_from((bet_sizes, raise_sizes)).map_err(
-                    |e| PyValueError::new_err(format!("something wrong my brother: {}", e)),
-                )?;
-            Ok(Self(bet_sizes_instance))
+            postflop_solver::BetSizeOptions::try_from((bet_sizes, raise_sizes))
+                .map(Self)
+                .map_err(|e| PyValueError::new_err(e))
         }
 
         fn __repr__(&self) -> String {
@@ -72,9 +70,9 @@ mod oxipostflop {
     impl BoardState {
         #[new]
         fn new(initial_state: &str) -> PyResult<Self> {
-            let initial_state = get_board_state(initial_state)
-                .map_err(|e| PyValueError::new_err(format!("something wrong my brother: {}", e)))?;
-            Ok(Self(initial_state))
+            get_board_state(initial_state)
+                .map(Self)
+                .map_err(|e| PyValueError::new_err(e))
         }
 
         fn __repr__(&self) -> String {
@@ -102,33 +100,28 @@ mod oxipostflop {
         ) -> PyResult<Self> {
             let oop_range_instance = oop_range
                 .parse::<postflop_solver::Range>()
-                .map_err(|e| PyValueError::new_err(format!("something wrong my brother: {}", e)))?;
+                .map_err(|e| PyValueError::new_err(e))?;
             let ip_range_instance = ip_range
                 .parse::<postflop_solver::Range>()
-                .map_err(|e| PyValueError::new_err(format!("something wrong my brother: {}", e)))?;
+                .map_err(|e| PyValueError::new_err(e))?;
 
-            let flop_instance = postflop_solver::flop_from_str(flop)
-                .map_err(|e| PyValueError::new_err(format!("something wrong my brother: {}", e)))?;
+            let flop_instance =
+                postflop_solver::flop_from_str(flop).map_err(|e| PyValueError::new_err(e))?;
 
             let turn_instance = turn.map_or(Ok(postflop_solver::NOT_DEALT), |turn| {
-                postflop_solver::card_from_str(turn).map_err(|e| {
-                    PyValueError::new_err(format!("something wrong my brother: {}", e))
-                })
+                postflop_solver::card_from_str(turn).map_err(|e| PyValueError::new_err(e))
             })?;
 
             let river_instance = river.map_or(Ok(postflop_solver::NOT_DEALT), |river| {
-                postflop_solver::card_from_str(river).map_err(|e| {
-                    PyValueError::new_err(format!("something wrong my brother: {}", e))
-                })
+                postflop_solver::card_from_str(river).map_err(|e| PyValueError::new_err(e))
             })?;
 
-            let card_config_instance = postflop_solver::CardConfig {
+            Ok(Self(postflop_solver::CardConfig {
                 range: [oop_range_instance, ip_range_instance],
                 flop: flop_instance,
                 turn: turn_instance,
                 river: river_instance,
-            };
-            Ok(Self(card_config_instance))
+            }))
         }
 
         fn __repr__(&self) -> String {
@@ -178,9 +171,8 @@ mod oxipostflop {
             force_allin_threshold: f64,
             merging_threshold: f64,
         ) -> PyResult<Self> {
-            let initial_state_instance = initial_state.0;
-            let tree_config_instance = postflop_solver::TreeConfig {
-                initial_state: initial_state_instance,
+            Ok(Self(postflop_solver::TreeConfig {
+                initial_state: initial_state.0,
                 starting_pot: starting_pot as i32,
                 effective_stack: effective_stack as i32,
                 rake_rate: 0.0,
@@ -193,8 +185,7 @@ mod oxipostflop {
                 add_allin_threshold,
                 force_allin_threshold,
                 merging_threshold,
-            };
-            Ok(Self(tree_config_instance))
+            }))
         }
 
         fn __repr__(&self) -> String {
@@ -223,9 +214,9 @@ mod oxipostflop {
     impl Action {
         #[new]
         fn new(action: &str) -> PyResult<Self> {
-            let action_instance = get_action(action, 0)
-                .map_err(|e| PyValueError::new_err(format!("something wrong my brother: {}", e)))?;
-            Ok(Self(action_instance))
+            get_action(action, 0)
+                .map(Self)
+                .map_err(|e| PyValueError::new_err(e))
         }
 
         fn __repr__(&self) -> String {
@@ -239,9 +230,7 @@ mod oxipostflop {
 
     #[pyfunction]
     fn holes_to_strings(holes: Vec<(u8, u8)>) -> PyResult<Vec<String>> {
-        let strings = postflop_solver::holes_to_strings(holes.as_slice())
-            .map_err(|e| PyValueError::new_err(format!("something wrong my brother: {}", e)))?;
-        Ok(strings)
+        postflop_solver::holes_to_strings(holes.as_slice()).map_err(|e| PyValueError::new_err(e))
     }
 
     #[pyfunction]
@@ -253,43 +242,148 @@ mod oxipostflop {
     fn card_from_str(card: &str) -> PyResult<u8> {
         postflop_solver::card_from_str(card)
             .map(|c| c as u8)
-            .map_err(|e| PyValueError::new_err(format!("something wrong my brother: {}", e)))
+            .map_err(|e| PyValueError::new_err(e))
+    }
+
+    #[pyfunction]
+    fn flop_from_str(flop: &str) -> PyResult<Vec<u8>> {
+        postflop_solver::flop_from_str(flop)
+            .map(|arr| arr.to_vec())
+            .map_err(|e| PyValueError::new_err(e))
+    }
+
+    #[pyfunction]
+    fn card_to_string(card: u8) -> PyResult<String> {
+        postflop_solver::card_to_string(card).map_err(|e| PyValueError::new_err(e))
+    }
+
+    #[pyfunction]
+    fn hole_to_string(hole: (u8, u8)) -> PyResult<String> {
+        postflop_solver::hole_to_string(hole).map_err(|e| PyValueError::new_err(e))
     }
 
     #[pyclass]
     pub struct PostFlopGame(postflop_solver::PostFlopGame);
+
     #[pymethods]
     impl PostFlopGame {
+        /// Creates a new PostFlopGame with the specified configurations.
+        ///
+        /// Parameters
+        /// ----------
+        /// card_config : CardConfig
+        ///   The card configuration containing player ranges and board cards.
+        /// tree_config : TreeConfig
+        ///   The game tree configuration.
+        ///
+        /// Returns
+        /// -------
+        /// PostFlopGame
+        ///   The created game instance.
         #[new]
         fn new(card_config: &CardConfig, tree_config: &TreeConfig) -> PyResult<Self> {
-            let card_config_instance = card_config.0.clone();
-            let action_tree_instance = postflop_solver::ActionTree::new(tree_config.0.clone())
-                .map_err(|e| PyValueError::new_err(format!("something wrong my brother: {}", e)))?;
-            let game_instance = postflop_solver::PostFlopGame::with_config(
-                card_config_instance,
-                action_tree_instance,
-            )
-            .map_err(|e| PyValueError::new_err(format!("something wrong my brother: {}", e)))?;
-            Ok(Self(game_instance))
+            let action_tree = postflop_solver::ActionTree::new(tree_config.0.clone())
+                .map_err(|e| PyValueError::new_err(e))?;
+            postflop_solver::PostFlopGame::with_config(card_config.0.clone(), action_tree)
+                .map(Self)
+                .map_err(|e| PyValueError::new_err(e))
         }
 
-        fn play(&mut self, action: usize) {
-            self.0.play(action);
-        }
-
+        /// Moves the current node back to the root node.
         fn back_to_root(&mut self) {
             self.0.back_to_root();
         }
 
+        /// Returns the history of actions from root to current node.
+        ///
+        /// Returns
+        /// -------
+        /// list of int
+        ///   Action indices that were played.
+        fn history(&self) -> Vec<usize> {
+            self.0.history().to_vec()
+        }
+
+        /// Applies a history of actions from the root node.
+        ///
+        /// Parameters
+        /// ----------
+        /// history : list of int
+        ///   Action indices to apply.
+        fn apply_history(&mut self, history: Vec<usize>) -> PyResult<()> {
+            self.0.apply_history(&history);
+            Ok(())
+        }
+
+        /// Returns whether the current node is terminal.
+        ///
+        /// Returns
+        /// -------
+        /// bool
+        fn is_terminal_node(&self) -> bool {
+            self.0.is_terminal_node()
+        }
+
+        /// Returns whether the current node is a chance node.
+        ///
+        /// Returns
+        /// -------
+        /// bool
         fn is_chance_node(&self) -> bool {
             self.0.is_chance_node()
         }
 
-        // return a 64-bit integer representing the possible cards as a bit mask
+        /// Returns possible cards as a bit mask at a chance node.
+        ///
+        /// Returns
+        /// -------
+        /// int
+        ///   64-bit integer where i-th bit = 1 if card i can be dealt.
         fn possible_cards(&self) -> u64 {
             self.0.possible_cards()
         }
 
+        /// Returns the current player (0=OOP, 1=IP).
+        ///
+        /// Returns
+        /// -------
+        /// int
+        fn current_player(&self) -> usize {
+            self.0.current_player()
+        }
+
+        /// Returns the current board cards.
+        ///
+        /// Returns
+        /// -------
+        /// list of int
+        ///   Card IDs for flop (3), turn (4), river (5).
+        fn current_board(&self) -> Vec<u8> {
+            self.0.current_board()
+        }
+
+        /// Plays an action at the current node.
+        ///
+        /// Parameters
+        /// ----------
+        /// action : int
+        ///   For player nodes: index into available_actions().
+        ///   For chance nodes: card ID to deal, or usize::MAX for auto-select.
+        fn play(&mut self, action: usize) {
+            self.0.play(action);
+        }
+
+        /// Returns private cards for a player.
+        ///
+        /// Parameters
+        /// ----------
+        /// player : int
+        ///   0 for OOP, 1 for IP.
+        ///
+        /// Returns
+        /// -------
+        /// list of tuple of int
+        ///   List of (card_id1, card_id2) pairs.
         fn private_cards(&self, player: usize) -> Vec<(u8, u8)> {
             Vec::from_iter(
                 self.0
@@ -299,14 +393,30 @@ mod oxipostflop {
             )
         }
 
+        /// Returns estimated memory usage.
+        ///
+        /// Returns
+        /// -------
+        /// tuple of (int, int)
+        ///   (uncompressed_bytes, compressed_bytes)
         fn memory_usage(&self) -> (u64, u64) {
             self.0.memory_usage()
         }
 
+        /// Returns the tree configuration.
+        ///
+        /// Returns
+        /// -------
+        /// TreeConfig
         fn tree_config(&self) -> TreeConfig {
             TreeConfig(self.0.tree_config().clone())
         }
 
+        /// Returns available actions at current node.
+        ///
+        /// Returns
+        /// -------
+        /// list of Action
         fn available_actions(&self) -> Vec<Action> {
             self.0
                 .available_actions()
@@ -315,25 +425,192 @@ mod oxipostflop {
                 .collect()
         }
 
+        /// Returns equity for each private hand.
+        ///
+        /// Must call cache_normalized_weights() first.
+        ///
+        /// Parameters
+        /// ----------
+        /// player : int
+        ///   0 for OOP, 1 for IP.
+        ///
+        /// Returns
+        /// -------
+        /// list of float
         fn equity(&self, player: usize) -> Vec<f32> {
             self.0.equity(player)
         }
 
+        /// Returns expected values for each private hand.
+        ///
+        /// Must call cache_normalized_weights() first and game must be solved.
+        ///
+        /// Parameters
+        /// ----------
+        /// player : int
+        ///   0 for OOP, 1 for IP.
+        ///
+        /// Returns
+        /// -------
+        /// list of float
         fn expected_values(&self, player: usize) -> Vec<f32> {
             self.0.expected_values(player)
         }
 
+        /// Returns detailed EV for each action and hand.
+        ///
+        /// Must call cache_normalized_weights() first and game must be solved.
+        ///
+        /// Parameters
+        /// ----------
+        /// player : int
+        ///   0 for OOP, 1 for IP.
+        ///
+        /// Returns
+        /// -------
+        /// list of float
+        ///   Length is num_actions * num_hands.
+        fn expected_values_detail(&self, player: usize) -> Vec<f32> {
+            self.0.expected_values_detail(player)
+        }
+
+        /// Returns normalized weights for each private hand.
+        ///
+        /// Must call cache_normalized_weights() first.
+        ///
+        /// Parameters
+        /// ----------
+        /// player : int
+        ///   0 for OOP, 1 for IP.
+        ///
+        /// Returns
+        /// -------
+        /// list of float
         fn normalized_weights(&self, player: usize) -> Vec<f32> {
             let weights = self.0.normalized_weights(player);
             Vec::from_iter(weights.iter().map(|w| *w as f32))
         }
 
+        /// Caches normalized weights for equity/EV calculations.
         fn cache_normalized_weights(&mut self) {
             self.0.cache_normalized_weights();
         }
 
+        /// Returns strategy at current node.
+        ///
+        /// Returns
+        /// -------
+        /// list of float
+        ///   Length is num_actions * num_hands.
         fn strategy(&self) -> Vec<f32> {
             self.0.strategy()
+        }
+
+        /// Returns total bet amount for each player.
+        ///
+        /// Returns
+        /// -------
+        /// list of int
+        ///   [oop_bet, ip_bet]
+        fn total_bet_amount(&self) -> [i32; 2] {
+            self.0.total_bet_amount()
+        }
+
+        /// Locks strategy at current node with custom frequencies.
+        ///
+        /// Must call after allocate_memory() and before solve().
+        ///
+        /// Parameters
+        /// ----------
+        /// strategy : list of float
+        ///   Length = num_actions * num_hands.
+        fn lock_current_strategy(&mut self, strategy: Vec<f32>) -> PyResult<()> {
+            self.0.lock_current_strategy(&strategy);
+            Ok(())
+        }
+
+        /// Unlocks strategy at current node.
+        fn unlock_current_strategy(&mut self) {
+            self.0.unlock_current_strategy();
+        }
+
+        /// Returns current locking strategy if any.
+        ///
+        /// Returns
+        /// -------
+        /// list of float or None
+        fn current_locking_strategy(&self) -> Option<Vec<f32>> {
+            self.0.current_locking_strategy()
+        }
+
+        /// Returns whether memory has been allocated.
+        ///
+        /// Returns
+        /// -------
+        /// bool or None
+        ///   True if allocated uncompressed, False if compressed, None if not allocated.
+        fn is_memory_allocated(&self) -> Option<bool> {
+            self.0.is_memory_allocated()
+        }
+
+        /// Returns the card configuration.
+        ///
+        /// Returns
+        /// -------
+        /// CardConfig
+        fn card_config(&self) -> CardConfig {
+            CardConfig(self.0.card_config().clone())
+        }
+
+        /// Returns added lines in the action tree.
+        ///
+        /// Returns
+        /// -------
+        /// list of list of Action
+        fn added_lines(&self) -> Vec<Vec<Action>> {
+            self.0
+                .added_lines()
+                .iter()
+                .map(|line| line.iter().map(|a| Action(*a)).collect())
+                .collect()
+        }
+
+        /// Returns removed lines from the action tree.
+        ///
+        /// Returns
+        /// -------
+        /// list of list of Action
+        fn removed_lines(&self) -> Vec<Vec<Action>> {
+            self.0
+                .removed_lines()
+                .iter()
+                .map(|line| line.iter().map(|a| Action(*a)).collect())
+                .collect()
+        }
+
+        /// Allocates memory for the game.
+        ///
+        /// Parameters
+        /// ----------
+        /// enable_compression : bool, default False
+        ///   If True, uses 16-bit integers (saves ~50% memory).
+        fn allocate_memory(&mut self, enable_compression: bool) {
+            self.0.allocate_memory(enable_compression);
+        }
+
+        /// Returns raw weights for each private hand.
+        ///
+        /// Parameters
+        /// ----------
+        /// player : int
+        ///   0 for OOP, 1 for IP.
+        ///
+        /// Returns
+        /// -------
+        /// list of float
+        fn weights(&self, player: usize) -> Vec<f32> {
+            let w = self.0.weights(player);
+            Vec::from_iter(w.iter().map(|x| *x))
         }
     }
 
@@ -356,21 +633,34 @@ mod oxipostflop {
             mem_usage_compressed as f64 / (1024.0 * 1024.0 * 1024.0)
         );
 
-        // allocate memory without compression (use 32-bit float)
         game_instance.allocate_memory(false);
 
-        let exploitability = postflop_solver::solve(
+        postflop_solver::solve(
             game_instance,
             max_num_iterations,
             target_exploitability,
             verbose,
-        );
-        exploitability
+        )
     }
 
     #[pyfunction]
-    fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
-        Ok((a + b).to_string())
+    fn compute_exploitability(game: &PostFlopGame) -> f32 {
+        postflop_solver::compute_exploitability(&game.0)
+    }
+
+    #[pyfunction]
+    fn compute_current_ev(game: &PostFlopGame) -> [f32; 2] {
+        postflop_solver::compute_current_ev(&game.0)
+    }
+
+    #[pyfunction]
+    fn compute_mes_ev(game: &PostFlopGame) -> [f32; 2] {
+        postflop_solver::compute_mes_ev(&game.0)
+    }
+
+    #[pyfunction]
+    fn finalize(game: &mut PostFlopGame) {
+        postflop_solver::finalize(&mut game.0);
     }
 
     #[pyfunction]
@@ -378,142 +668,5 @@ mod oxipostflop {
         let vec: Vec<i32> = vec![1, 2, 3, 4, 5];
         let array = Array1::from_vec(vec);
         array.into_pyarray_bound(py)
-    }
-
-    use postflop_solver::*;
-    #[allow(dead_code)]
-    fn mama() {
-        // ranges of OOP and IP in string format
-        // see the documentation of `Range` for more details about the format
-        let oop_range = "66+,A8s+,A5s-A4s,AJo+,K9s+,KQo,QTs+,JTs,96s+,85s+,75s+,65s,54s";
-        let ip_range = "QQ-22,AQs-A2s,ATo+,K5s+,KJo+,Q8s+,J8s+,T7s+,96s+,86s+,75s+,64s+,53s+";
-
-        let card_config = postflop_solver::CardConfig {
-            range: [oop_range.parse().unwrap(), ip_range.parse().unwrap()],
-            flop: flop_from_str("Td9d6h").unwrap(),
-            turn: card_from_str("Qc").unwrap(),
-            river: NOT_DEALT,
-        };
-
-        // bet sizes -> 60% of the pot, geometric size, and all-in
-        // raise sizes -> 2.5x of the previous bet
-        // see the documentation of `BetSizeOptions` for more details
-        let bet_sizes = postflop_solver::BetSizeOptions::try_from(("60%, e, a", "2.5x")).unwrap();
-
-        let tree_config = postflop_solver::TreeConfig {
-            initial_state: postflop_solver::BoardState::Turn, // must match `card_config`
-            starting_pot: 200,
-            effective_stack: 900,
-            rake_rate: 0.0,
-            rake_cap: 0.0,
-            flop_bet_sizes: [bet_sizes.clone(), bet_sizes.clone()], // [OOP, IP]
-            turn_bet_sizes: [bet_sizes.clone(), bet_sizes.clone()],
-            river_bet_sizes: [bet_sizes.clone(), bet_sizes],
-            turn_donk_sizes: None, // use default bet sizes
-            river_donk_sizes: Some(postflop_solver::DonkSizeOptions::try_from("50%").unwrap()),
-            add_allin_threshold: 1.5, // add all-in if (maximum bet size) <= 1.5x pot
-            force_allin_threshold: 0.15, // force all-in if (SPR after the opponent's call) <= 0.15
-            merging_threshold: 0.1,
-        };
-
-        // build the game tree
-        // `ActionTree` can be edited manually after construction
-        let action_tree = ActionTree::new(tree_config).unwrap();
-        let mut game =
-            postflop_solver::PostFlopGame::with_config(card_config, action_tree).unwrap();
-
-        // obtain the private hands
-        let oop_cards = game.private_cards(0);
-        let oop_cards_str = postflop_solver::holes_to_strings(oop_cards).unwrap();
-        assert_eq!(
-            &oop_cards_str[..10],
-            &["5c4c", "Ac4c", "5d4d", "Ad4d", "5h4h", "Ah4h", "5s4s", "As4s", "6c5c", "7c5c"]
-        );
-
-        // check memory usage
-        let (mem_usage, mem_usage_compressed) = game.memory_usage();
-        println!(
-            "Memory usage without compression (32-bit float): {:.2}GB",
-            mem_usage as f64 / (1024.0 * 1024.0 * 1024.0)
-        );
-        println!(
-            "Memory usage with compression (16-bit integer): {:.2}GB",
-            mem_usage_compressed as f64 / (1024.0 * 1024.0 * 1024.0)
-        );
-
-        // allocate memory without compression (use 32-bit float)
-        game.allocate_memory(false);
-
-        // allocate memory with compression (use 16-bit integer)
-        // game.allocate_memory(true);
-
-        // solve the game
-        let max_num_iterations = 1000;
-        let target_exploitability = game.tree_config().starting_pot as f32 * 0.005; // 0.5% of the pot
-        let exploitability =
-            postflop_solver::solve(&mut game, max_num_iterations, target_exploitability, true);
-        println!("Exploitability: {:.2}", exploitability);
-
-        // get equity and EV of a specific hand
-        game.cache_normalized_weights();
-        let equity = game.equity(0); // `0` means OOP player
-        let ev = game.expected_values(0);
-        println!("Equity of oop_hands[0]: {:.2}%", 100.0 * equity[0]);
-        println!("EV of oop_hands[0]: {:.2}", ev[0]);
-
-        // get equity and EV of whole hand
-        let weights = game.normalized_weights(0);
-        let average_equity = compute_average(equity.to_vec(), weights.to_vec());
-        let average_ev = compute_average(ev.to_vec(), weights.to_vec());
-        println!("Average equity: {:.2}%", 100.0 * average_equity);
-        println!("Average EV: {:.2}", average_ev);
-
-        // get available actions (OOP)
-        let actions = game.available_actions();
-        assert_eq!(
-            format!("{:?}", actions),
-            "[Check, Bet(120), Bet(216), AllIn(900)]"
-        );
-
-        // play `Bet(120)`
-        game.play(1);
-
-        // get available actions (IP)
-        let actions = game.available_actions();
-        assert_eq!(format!("{:?}", actions), "[Fold, Call, Raise(300)]");
-
-        // confirm that IP does not fold the nut straight
-        let ip_cards = game.private_cards(1);
-        let strategy = game.strategy();
-        assert_eq!(ip_cards.len(), 250);
-        assert_eq!(strategy.len(), 750);
-
-        let ksjs = postflop_solver::holes_to_strings(ip_cards)
-            .unwrap()
-            .iter()
-            .position(|s| s == "KsJs")
-            .unwrap();
-
-        // strategy[index] => Fold
-        // strategy[index + ip_cards.len()] => Call
-        // strategy[index + 2 * ip_cards.len()] => Raise(300)
-        assert_eq!(strategy[ksjs], 0.0);
-        assert!((strategy[ksjs] + strategy[ksjs + 250] + strategy[ksjs + 500] - 1.0).abs() < 1e-6);
-
-        // play `Call`
-        game.play(1);
-
-        // confirm that the current node is a chance node (i.e., river node)
-        assert!(game.is_chance_node());
-
-        // confirm that "7s" can be dealt
-        let card_7s = card_from_str("7s").unwrap();
-        assert!(game.possible_cards() & (1 << card_7s) != 0);
-
-        // deal "7s"
-        game.play(card_7s as usize);
-
-        // back to the root node
-        game.back_to_root();
     }
 }
