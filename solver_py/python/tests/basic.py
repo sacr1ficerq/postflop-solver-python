@@ -120,3 +120,18 @@ game.play(card_7s)
 game.back_to_root()
 
 print("All basic example tests passed!")
+
+
+from oxipostflop.utils import create_hands_matrix, get_average_weight_matrix, normalize_weights, print_matrix
+# Get data from game
+oop_cards = game.private_cards(0)
+actions = game.available_actions()
+action_names = [str(a).split('(')[0] for a in actions]
+strategy = game.strategy()
+game.cache_normalized_weights()
+weights = normalize_weights(game.normalized_weights(0))
+# Create matrix
+hands_matrix = create_hands_matrix(oop_cards, weights, strategy, action_names)
+# Get average weights as 13x13 float matrix
+avg_weights = get_average_weight_matrix(hands_matrix)
+print_matrix(avg_weights, precision=2)
