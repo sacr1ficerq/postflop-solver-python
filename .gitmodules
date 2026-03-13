@@ -1,0 +1,3 @@
+[submodule "postflop-solver"]
+	path = postflop-solver
+	url = https://github.com/sacr1ficerq/postflop-solver
